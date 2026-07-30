@@ -122,6 +122,9 @@ class Repository private constructor(private val ctx: Context) {
         val filtered = st.submissions.filterNot { it.childId == sub.childId && it.anketaId == sub.anketaId }
         st.copy(submissions = filtered + sub)
     }
+    fun deleteSubmission(childId: String, anketaId: String) = update { st ->
+        st.copy(submissions = st.submissions.filterNot { it.childId == childId && it.anketaId == anketaId })
+    }
     fun submissionFor(childId: String, anketaId: String): AnketaSubmission? =
         _state.value.submissions.firstOrNull { it.childId == childId && it.anketaId == anketaId }
     fun submissionsForClass(classId: String, anketaId: String): List<AnketaSubmission> {

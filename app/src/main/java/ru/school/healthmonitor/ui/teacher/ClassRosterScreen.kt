@@ -1,11 +1,14 @@
 package ru.school.healthmonitor.ui.teacher
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -16,6 +19,7 @@ import ru.school.healthmonitor.ui.common.AppScaffold
 import ru.school.healthmonitor.ui.common.EmptyState
 import ru.school.healthmonitor.ui.common.ProgressStrip
 import ru.school.healthmonitor.ui.common.SectionCard
+import ru.school.healthmonitor.util.rememberQr
 
 @Composable
 fun ClassRosterScreen(nav: NavController, teacherId: String, classId: String) {
@@ -26,6 +30,7 @@ fun ClassRosterScreen(nav: NavController, teacherId: String, classId: String) {
     val sc = repo.classById(classId) ?: return
     val kids = state.children.filter { it.classId == classId }
     val anketas = AnketaCatalog.forTeacherRole(teacher.role)
+    var showQr by remember { mutableStateOf(false) }
 
     AppScaffold("${sc.letter}", nav) { pv ->
         Column(
@@ -40,16 +45,36 @@ fun ClassRosterScreen(nav: NavController, teacherId: String, classId: String) {
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Spacer(Modifier.height(6.dp))
                 Text("Код приглашения родителей: ${sc.inviteCode}",
-                    style = MaterialTheme.typography.bodyMedium)
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Medium)
                 Text("Учеников: ${kids.size}",
                     style = MaterialTheme.typography.bodyMedium)
+                Spacer(Modifier.height(10.dp))
+                TextButton(onClick = { showQr = !showQr }) {
+                    Text(if (showQr) "Скрыть QR-код" else "Показать QR-код для родителей")
+                }
+                if (showQr) {
+                    val qr = rememberQr(sc.inviteCode, 480)
+                    if (qr != null) {
+                        Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                            Image(
+                                bitmap = qr.asImageBitmap(),
+                                contentDescription = "QR-код класса ${sc.inviteCode}",
+                                modifier = Modifier.size(220.dp)
+                            )
+                        }
+                        Text("Родители сканируют этот код камерой при входе.",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
             }
 
             SectionCard("Анкеты") {
                 anketas.forEach { a ->
                     val donePerAnketa = kids.count { c ->
                         state.submissions.any {
-                            it.childId == c.id && it.anketaId == a.id && it.submittedBy != "draft"
+                            it.childId == c.id && it.anketaId == a.id && it.finalized
                         }
                     }
                     ElevatedCard(
@@ -83,7 +108,7 @@ fun ClassRosterScreen(nav: NavController, teacherId: String, classId: String) {
                 } else {
                     kids.forEach { c ->
                         val done = state.submissions.count {
-                            it.childId == c.id && it.submittedBy != "draft"
+                            it.childId == c.id && it.finalized
                         }
                         Row(
                             Modifier.fillMaxWidth().padding(vertical = 6.dp)

@@ -159,40 +159,56 @@ fun ExportScreen(nav: NavController, teacherId: String, classId: String) {
                 }
             }
 
+            SectionCard("Сводка по классу (PDF)") {
+                Text("Кто из учеников какие анкеты заполнил — удобно отследить недостающее.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Spacer(Modifier.height(10.dp))
+                Button(
+                    onClick = {
+                        scope.launch {
+                            busy = true
+                            val f = withContext(Dispatchers.IO) { Exporter.exportClassSummaryPdf(ctx, sc) }
+                            busy = false
+                            share(listOf(f), "application/pdf")
+                        }
+                    },
+                    enabled = !busy,
+                    modifier = Modifier.fillMaxWidth().height(48.dp)
+                ) { Text(if (busy) "Формируется…" else "Сформировать сводку") }
+            }
+
             SectionCard("PDF по ребёнку") {
                 Text("Заполненная анкета в виде «вопрос → ответ» — для архива и подписи родителя.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Spacer(Modifier.height(8.dp))
-                var any = false
-                kids.forEach { child ->
-                    AnketaCatalog.all.forEach { a ->
-                        val filed = state.submissions.any {
-                            it.childId == child.id && it.anketaId == a.id && it.submittedBy != "draft"
-                        }
-                        if (filed) {
-                            any = true
-                            OutlinedButton(
-                                onClick = {
-                                    scope.launch {
-                                        busy = true
-                                        val f = withContext(Dispatchers.IO) {
-                                            Exporter.exportChildAnketaPdf(ctx, child, a)
-                                        }
-                                        busy = false
-                                        share(listOf(f), "application/pdf")
-                                    }
-                                },
-                                enabled = !busy,
-                                modifier = Modifier.fillMaxWidth().padding(vertical = 1.dp)
-                            ) { Text("PDF · ${child.displayName} · №${a.id}") }
-                        }
-                    }
+                val pairs = kids.flatMap { child ->
+                    AnketaCatalog.all.filter { a ->
+                        state.submissions.any { it.childId == child.id && it.anketaId == a.id && it.hasData }
+                    }.map { child to it }
                 }
-                if (!any) {
+                if (pairs.isEmpty()) {
                     Text("Пока нет заполненных анкет.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
+                } else {
+                    pairs.forEach { (child, a) ->
+                        OutlinedButton(
+                            onClick = {
+                                scope.launch {
+                                    busy = true
+                                    val f = withContext(Dispatchers.IO) {
+                                        Exporter.exportChildAnketaPdf(ctx, child, a)
+                                    }
+                                    busy = false
+                                    share(listOf(f), "application/pdf")
+                                }
+                            },
+                            enabled = !busy,
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 1.dp)
+                        ) { Text("PDF · ${child.displayName} · №${a.id}") }
+                    }
                 }
             }
             Spacer(Modifier.height(24.dp))

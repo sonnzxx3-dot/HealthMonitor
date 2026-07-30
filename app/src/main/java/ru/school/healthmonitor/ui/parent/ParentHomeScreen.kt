@@ -147,7 +147,7 @@ fun ParentHomeScreen(nav: NavController, childId: String) {
             )
             AnketaCatalog.parentAnketas.forEach { anketa ->
                 val filled = state.submissions.any {
-                    it.childId == child.id && it.anketaId == anketa.id && it.submittedBy != "draft"
+                    it.childId == child.id && it.anketaId == anketa.id && it.finalized
                 }
                 val hasDraft = state.submissions.any {
                     it.childId == child.id && it.anketaId == anketa.id

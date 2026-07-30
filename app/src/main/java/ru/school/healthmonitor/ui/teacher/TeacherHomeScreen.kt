@@ -69,7 +69,7 @@ fun TeacherHomeScreen(nav: NavController, teacherId: String) {
                         val kids = repo.childrenOfClass(cid)
                         val totalCells = kids.size * AnketaCatalog.all.size
                         val filledCells = state.submissions.count {
-                            it.submittedBy != "draft" &&
+                            it.finalized &&
                                     kids.any { c -> c.id == it.childId }
                         }
                         FilledTonalButton(

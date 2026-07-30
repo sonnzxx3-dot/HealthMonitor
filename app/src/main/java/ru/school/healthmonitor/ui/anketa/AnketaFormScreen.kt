@@ -2,6 +2,7 @@ package ru.school.healthmonitor.ui.anketa
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -10,7 +11,9 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -45,6 +48,7 @@ fun AnketaFormScreen(
     val anketa = remember(anketaId) { AnketaCatalog.byId(anketaId) }
     val existing = remember(childId, anketaId) { repo.submissionFor(childId, anketaId) }
     val kb = LocalSoftwareKeyboardController.current
+    val focus = LocalFocusManager.current
 
     val values = remember {
         mutableStateMapOf<String, String>().apply { existing?.values?.let { putAll(it) } }
@@ -54,11 +58,14 @@ fun AnketaFormScreen(
     var autosaved by remember { mutableStateOf(false) }
     var showResetDialog by remember { mutableStateOf(false) }
 
-    // Автосохранение: сохраняем черновик через 800 мс после последней правки.
+    // Была ли анкета уже финализирована — тогда автосохранение не сбрасывает статус.
+    val wasFinalized = existing?.finalized == true
+
+    // Автосохранение: сохраняем через 800 мс после последней правки.
     LaunchedEffect(dirty) {
         if (dirty) {
             delay(800)
-            saveSilently(repo, childId, anketaId, values, autoDraft = true)
+            saveSilently(repo, childId, anketaId, values, finalize = wasFinalized)
             autosaved = true
             dirty = false
             delay(1500)
@@ -107,6 +114,7 @@ fun AnketaFormScreen(
                     total = anketa.fields.size,
                     values = values,
                     errors = errors,
+                    focus = focus,
                     onChanged = { dirty = true; errors.remove(f.code) }
                 )
             }
@@ -121,7 +129,7 @@ fun AnketaFormScreen(
                     }
                     if (errors.isEmpty()) {
                         kb?.hide()
-                        saveSilently(repo, childId, anketaId, values, autoDraft = false)
+                        saveSilently(repo, childId, anketaId, values, finalize = true)
                         nav.popBackStack()
                     }
                 },
@@ -150,7 +158,8 @@ fun AnketaFormScreen(
         onConfirm = {
             values.clear()
             errors.clear()
-            saveSilently(repo, childId, anketaId, values, autoDraft = false)
+            repo.deleteSubmission(childId, anketaId)
+            nav.popBackStack()
         },
         onDismiss = { showResetDialog = false }
     )
@@ -158,18 +167,19 @@ fun AnketaFormScreen(
 
 private fun saveSilently(
     repo: Repository, childId: String, anketaId: String,
-    values: Map<String, String>, autoDraft: Boolean
+    values: Map<String, String>, finalize: Boolean
 ) {
     val cleaned = values.filterValues { it.isNotBlank() }
-    if (cleaned.isEmpty() && !autoDraft) {
-        // не сохраняем пустую сабмишн
+    if (cleaned.isEmpty()) {
+        // пустая анкета — удаляем сабмишн, если была
+        repo.deleteSubmission(childId, anketaId)
         return
     }
     repo.saveSubmission(
         AnketaSubmission(
             childId = childId, anketaId = anketaId, values = cleaned,
             submittedAt = System.currentTimeMillis(),
-            submittedBy = if (autoDraft) "draft" else "final"
+            finalized = finalize
         )
     )
 }
@@ -181,8 +191,10 @@ private fun RenderField(
     total: Int,
     values: MutableMap<String, String>,
     errors: MutableMap<String, String>,
+    focus: androidx.compose.ui.focus.FocusManager,
     onChanged: () -> Unit
 ) {
+    val nextAction = KeyboardActions(onNext = { focus.moveFocus(FocusDirection.Down) })
     SectionCard {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text("$idx/$total", style = MaterialTheme.typography.labelSmall,
@@ -214,6 +226,7 @@ private fun RenderField(
                         keyboardType = if (f.type == FieldType.DECIMAL) KeyboardType.Decimal else KeyboardType.Number,
                         imeAction = ImeAction.Next
                     ),
+                    keyboardActions = nextAction,
                     isError = errors[f.code] != null,
                     supportingText = errors[f.code]?.let { { Text(it) } },
                     modifier = Modifier.fillMaxWidth()
@@ -225,6 +238,7 @@ private fun RenderField(
                     onValueChange = { values[f.code] = it; onChanged() },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+                    keyboardActions = nextAction,
                     isError = errors[f.code] != null,
                     supportingText = errors[f.code]?.let { { Text(it) } },
                     modifier = Modifier.fillMaxWidth()

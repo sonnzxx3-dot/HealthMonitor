@@ -2,8 +2,6 @@ package ru.school.healthmonitor.data
 
 import kotlinx.serialization.Serializable
 
-enum class Role { PARENT, TEACHER, ADMIN }
-
 @Serializable
 data class SchoolClass(
     val id: String,           // uuid
@@ -43,11 +41,14 @@ enum class TeacherRole { HOMEROOM, MEDIC, PE, ADMIN }
 @Serializable
 data class AnketaSubmission(
     val childId: String,
-    val anketaId: String,     // "1", "2" ... "11"
+    val anketaId: String,         // "1", "2" ... "11"
     val values: Map<String, String>,
-    val submittedAt: Long,    // timestamp
-    val submittedBy: String   // "parent:<childId>" или "teacher:<accountId>"
-)
+    val submittedAt: Long,        // timestamp
+    val finalized: Boolean = false // true — нажали «Сохранить и отправить»; false — автосохранённый черновик
+) {
+    /** Есть ли вообще заполненные данные. */
+    val hasData: Boolean get() = values.values.any { it.isNotBlank() }
+}
 
 @Serializable
 data class AppState(
