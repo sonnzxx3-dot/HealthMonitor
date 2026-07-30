@@ -1,26 +1,24 @@
 package ru.school.healthmonitor.domain
 
+import ru.school.healthmonitor.data.TeacherRole
 import ru.school.healthmonitor.domain.FieldType.*
 import ru.school.healthmonitor.domain.FillerType.*
 
 /**
- * Полный каталог анкет.
- *
- * Замечание. Тексты вопросов и варианты ответов взяты из ваших docx-файлов
- * (первые страницы). Для нескольких длинных анкет здесь оставлен базовый
- * набор ключевых полей — расширяется в этом файле без правок остального кода:
- * добавили Field в fields — форма и выгрузка подхватят автоматически.
+ * Полный каталог 11 анкет.
+ * Коды полей совпадают с макетными xlsx-файлами — так итоговая выгрузка
+ * загружается в стороннюю систему без ручной перекодировки.
  */
 object AnketaCatalog {
 
-    private fun yesNo(code: String, q: String, required: Boolean = true) = Field(
-        code, q, CHOICE, listOf(FieldOption("1", "Да"), FieldOption("2", "Нет")), required
-    )
+    private fun choice(code: String, q: String, vararg opts: Pair<String, String>, required: Boolean = false, hint: String? = null) =
+        Field(code, q, CHOICE, opts.map { FieldOption(it.first, it.second) }, required, hint)
 
-    private fun sexField() = Field(
-        "sex", "Пол", CHOICE,
-        listOf(FieldOption("1", "мужской"), FieldOption("2", "женский")), required = true
-    )
+    private fun yesNo(code: String, q: String, required: Boolean = true) =
+        choice(code, q, "1" to "Да", "2" to "Нет", required = required)
+
+    private fun rate3(code: String, q: String, required: Boolean = false) =
+        choice(code, q, "1" to "Часто", "2" to "Иногда", "3" to "Никогда/редко", required = required)
 
     // ─── №1 Физическое здоровье и развитие (медработник, табличная) ─────────
     private val a1 = Anketa(
@@ -31,18 +29,24 @@ object AnketaCatalog {
         tabular = true,
         fields = listOf(
             Field("mdate", "Дата измерения (дд.мм.гггг)", DATE, required = true),
-            Field("height", "Рост (см)", INT, required = true),
-            Field("weight", "Вес (кг)", DECIMAL, required = true),
+            Field("height", "Рост (см)", INT, required = true, hint = "обычно 120–190"),
+            Field("weight", "Вес (кг)", DECIMAL, required = true, hint = "обычно 20–100"),
             Field("chest", "Окружность грудной клетки в покое (см)", INT),
             Field("waist", "Окружность талии (см)", INT),
-            Field("hips", "Окружность бедер (см)", INT),
-            Field("bl_up", "Систолическое АД (мм рт. ст.)", INT),
-            Field("bl_lo", "Диастолическое АД (мм рт. ст.)", INT),
-            Field("heart", "ЧСС (уд/мин)", INT),
-            Field("h_gr", "Группа здоровья", CHOICE, (1..5).map { FieldOption("$it", "$it") }),
-            Field("dis", "Есть нарушения здоровья?", CHOICE, listOf(
-                FieldOption("1", "есть"), FieldOption("2", "нет"), FieldOption("3", "нет данных")
-            ))
+            Field("hips", "Окружность бёдер (см)", INT),
+            Field("bl_up", "Систолическое АД (мм рт. ст.)", INT, hint = "обычно 90–130"),
+            Field("bl_lo", "Диастолическое АД (мм рт. ст.)", INT, hint = "обычно 55–85"),
+            Field("heart", "ЧСС (уд/мин)", INT, hint = "обычно 60–100"),
+            choice("h_gr", "Группа здоровья",
+                "1" to "I — здоров",
+                "2" to "II — функциональные отклонения",
+                "3" to "III — хронические компенсированные",
+                "4" to "IV — хронические декомпенсированные",
+                "5" to "V — инвалидность", required = true),
+            choice("dis", "Есть ли зарегистрированные нарушения здоровья?",
+                "1" to "есть", "2" to "нет", "3" to "нет данных"),
+            Field("dis1", "Основной диагноз (МКБ-10, если есть)", TEXT),
+            Field("dis2", "Сопутствующий диагноз (МКБ-10)", TEXT)
         )
     )
 
@@ -56,7 +60,7 @@ object AnketaCatalog {
         fields = listOf(
             Field("height", "Рост (см)", INT),
             Field("weight", "Вес (кг)", DECIMAL),
-            Field("sep", "Пропуски сентябрь (дн., -1 если не числился)", INT, allowNegative = true),
+            Field("sep", "Пропуски сентябрь (дн., −1 если не числился)", INT, allowNegative = true),
             Field("oct", "Пропуски октябрь", INT, allowNegative = true),
             Field("nov", "Пропуски ноябрь", INT, allowNegative = true),
             Field("dec", "Пропуски декабрь", INT, allowNegative = true),
@@ -64,7 +68,10 @@ object AnketaCatalog {
             Field("feb", "Пропуски февраль", INT, allowNegative = true),
             Field("mar", "Пропуски март", INT, allowNegative = true),
             Field("apr", "Пропуски апрель", INT, allowNegative = true),
-            Field("may", "Пропуски май", INT, allowNegative = true)
+            Field("may", "Пропуски май", INT, allowNegative = true),
+            choice("chronic", "Наличие хронических заболеваний",
+                "1" to "нет", "2" to "1 заболевание",
+                "3" to "2 заболевания", "4" to "3 и более")
         )
     )
 
@@ -78,17 +85,14 @@ object AnketaCatalog {
         fields = listOf(
             Field("height", "Рост (см)", INT),
             Field("weight", "Вес (кг)", DECIMAL),
-            Field("ph_gr", "Физкультурная группа", CHOICE, listOf(
-                FieldOption("1", "Основная"),
-                FieldOption("2", "Подготовительная"),
-                FieldOption("3", "Специальная"),
-                FieldOption("4", "Нет данных")
-            )),
-            Field("run30", "Бег 30 м (с)", DECIMAL),
-            Field("ljump", "Прыжок в длину с места (см)", INT),
-            Field("run6", "6-минутный бег (м)", INT),
+            choice("ph_gr", "Физкультурная группа",
+                "1" to "Основная", "2" to "Подготовительная",
+                "3" to "Специальная", "4" to "Нет данных", required = true),
+            Field("run30", "Бег 30 м (с)", DECIMAL, hint = "обычно 5–9"),
+            Field("ljump", "Прыжок в длину с места (см)", INT, hint = "обычно 100–220"),
+            Field("run6", "6-минутный бег (м)", INT, hint = "обычно 700–1600"),
             Field("lift", "Подъём туловища за 1 мин (раз)", INT),
-            Field("bend", "Наклон вперёд (см, м.б. отриц.)", INT, allowNegative = true),
+            Field("bend", "Наклон вперёд (см, может быть отриц.)", INT, allowNegative = true),
             Field("run310", "Челночный бег 3×10 м (с)", DECIMAL),
             Field("romb", "Стойка в линию (проба Ромберга) (с)", INT),
             Field("lhand", "Кистевая динамометрия, левая (кг)", DECIMAL),
@@ -104,24 +108,28 @@ object AnketaCatalog {
         filler = PARENT,
         tabular = false,
         fields = listOf(
-            Field("mdate", "Дата измерения (дд.мм.гггг)", DATE),
-            Field("height", "Рост (см)", INT),
-            Field("weight", "Вес (кг)", DECIMAL),
+            Field("mdate", "Дата заполнения (дд.мм.гггг)", DATE),
+            Field("height", "Рост (см)", INT, hint = "если известен"),
+            Field("weight", "Вес (кг)", DECIMAL, hint = "если известен"),
             Field("q1_h", "Часов высокоинтенсивной активности за неделю", INT,
-                hint = "футбол, интенсивный бег, езда на велосипеде и т.п."),
-            Field("q1_m", "…минут", INT),
+                hint = "футбол, интенсивный бег, единоборства"),
+            Field("q1_m", "…дополнительно минут", INT),
             Field("q2_h", "Часов среднеинтенсивной активности за неделю", INT,
-                hint = "быстрая ходьба, лёгкий бег, плавание в спокойном темпе"),
-            Field("q2_m", "…минут", INT),
+                hint = "быстрая ходьба, лёгкий бег, велосипед"),
+            Field("q2_m", "…дополнительно минут", INT),
             Field("q3_h", "Часов низкоинтенсивной активности за неделю", INT,
-                hint = "неспешные прогулки, лёгкая уборка"),
-            Field("q3_m", "…минут", INT),
+                hint = "прогулки, лёгкая уборка"),
+            Field("q3_m", "…дополнительно минут", INT),
             Field("q4", "Уроков физкультуры в неделю", INT),
-            Field("q5", "Занятия в спортивной секции?", CHOICE, listOf(
-                FieldOption("1", "Да, регулярно"),
-                FieldOption("2", "Да, иногда"),
-                FieldOption("3", "Нет")
-            ))
+            choice("q5", "Занятия в спортивной секции",
+                "1" to "Да, регулярно (≥ 2 раз в неделю)",
+                "2" to "Иногда", "3" to "Нет"),
+            choice("q6", "Как ребёнок добирается до школы",
+                "1" to "Пешком/на велосипеде",
+                "2" to "Общественным транспортом",
+                "3" to "На машине с родителем"),
+            choice("q7", "Как оценивает свою выносливость",
+                "1" to "Высокая", "2" to "Средняя", "3" to "Низкая")
         )
     )
 
@@ -133,31 +141,32 @@ object AnketaCatalog {
         filler = PARENT,
         tabular = false,
         fields = listOf(
-            Field("q1", "Сколько раз в день ест ребёнок", CHOICE, listOf(
-                FieldOption("1", "1–2 раза"),
-                FieldOption("2", "3 раза"),
-                FieldOption("3", "4 раза"),
-                FieldOption("4", "5 и более раз")
-            )),
-            Field("q2", "Завтракает ли дома?", CHOICE, listOf(
-                FieldOption("1", "Каждый день"),
-                FieldOption("2", "Иногда"),
-                FieldOption("3", "Никогда")
-            )),
-            Field("q3", "Ест ли горячий обед?", CHOICE, listOf(
-                FieldOption("1", "Каждый день"),
-                FieldOption("2", "Несколько раз в неделю"),
-                FieldOption("3", "Редко или никогда")
-            )),
-            Field("q4", "Ест ли фрукты/овощи ежедневно?", CHOICE, listOf(
-                FieldOption("1", "Да"), FieldOption("2", "Иногда"), FieldOption("3", "Нет")
-            )),
-            Field("q5", "Пьёт ли сладкие газированные напитки?", CHOICE, listOf(
-                FieldOption("1", "Ежедневно"),
-                FieldOption("2", "Несколько раз в неделю"),
-                FieldOption("3", "Редко"),
-                FieldOption("4", "Никогда")
-            ))
+            choice("q1", "Сколько раз в день ест ребёнок",
+                "1" to "1–2 раза", "2" to "3 раза",
+                "3" to "4 раза", "4" to "5 и более", required = true),
+            choice("q2", "Завтракает дома",
+                "1" to "Каждый день", "2" to "Иногда", "3" to "Никогда"),
+            choice("q3", "Ест горячий обед",
+                "1" to "Каждый день",
+                "2" to "Несколько раз в неделю",
+                "3" to "Редко или никогда"),
+            choice("q4", "Ест фрукты/овощи ежедневно",
+                "1" to "Да, ежедневно", "2" to "Иногда", "3" to "Редко/никогда"),
+            choice("q5", "Пьёт ли сладкие газированные напитки",
+                "1" to "Ежедневно",
+                "2" to "Несколько раз в неделю",
+                "3" to "Редко", "4" to "Никогда"),
+            choice("q6", "Ест ли фастфуд (бургеры, наггетсы и т.п.)",
+                "1" to "Ежедневно",
+                "2" to "Раз в неделю",
+                "3" to "Реже раза в месяц",
+                "4" to "Не ест"),
+            choice("q7", "Питается в школьной столовой",
+                "1" to "Обязательно, полноценно",
+                "2" to "Только буфет/перекус",
+                "3" to "Не питается в школе"),
+            choice("q8", "Пьёт достаточно воды в течение дня",
+                "1" to "Да", "2" to "Не всегда", "3" to "Пьёт мало")
         )
     )
 
@@ -169,12 +178,23 @@ object AnketaCatalog {
         filler = PARENT,
         tabular = false,
         fields = listOf(
-            Field("wake", "Во сколько ребёнок обычно просыпается? (чч:мм)", TEXT),
-            Field("sleep", "Во сколько ложится спать? (чч:мм)", TEXT),
-            Field("sleep_h", "Сколько часов спит ночью", DECIMAL),
+            Field("wake", "Во сколько ребёнок обычно просыпается (чч:мм)", TEXT),
+            Field("sleep", "Во сколько ложится спать (чч:мм)", TEXT),
+            Field("sleep_h", "Сколько часов спит ночью", DECIMAL, hint = "обычно 7–10"),
+            Field("nap", "Дневной сон (мин, 0 если нет)", INT),
             Field("walk", "Сколько минут проводит на улице ежедневно", INT),
             Field("hw", "Сколько часов уходит на домашние задания", DECIMAL),
-            Field("free", "Сколько часов свободного времени", DECIMAL)
+            Field("tutor", "Часов в неделю на репетиторов/кружки", DECIMAL),
+            Field("free", "Сколько часов свободного времени в день", DECIMAL),
+            choice("q_sleep_qual", "Насколько ребёнок высыпается",
+                "1" to "Всегда высыпается",
+                "2" to "Иногда не высыпается",
+                "3" to "Часто не высыпается"),
+            choice("q_hw_help", "Кто помогает делать уроки",
+                "1" to "Никто, сам справляется",
+                "2" to "Родители",
+                "3" to "Репетитор",
+                "4" to "Старшие братья/сёстры")
         )
     )
 
@@ -182,32 +202,33 @@ object AnketaCatalog {
     private val a7 = Anketa(
         id = "7",
         title = "Самочувствие",
-        subtitle = "отвечает обучающийся",
+        subtitle = "отвечает сам обучающийся",
         filler = CHILD,
         tabular = false,
         fields = listOf(
-            Field("q1", "Как ты чувствуешь себя обычно?", CHOICE, listOf(
-                FieldOption("1", "Хорошо"),
-                FieldOption("2", "Бывает по-разному"),
-                FieldOption("3", "Часто плохо")
-            )),
-            Field("q2", "Как часто болит голова?", CHOICE, listOf(
-                FieldOption("1", "Никогда или очень редко"),
-                FieldOption("2", "Раз в месяц"),
-                FieldOption("3", "Раз в неделю"),
-                FieldOption("4", "Почти каждый день")
-            )),
-            Field("q3", "Как часто болит живот?", CHOICE, listOf(
-                FieldOption("1", "Никогда/редко"),
-                FieldOption("2", "Раз в месяц"),
-                FieldOption("3", "Раз в неделю"),
-                FieldOption("4", "Почти каждый день")
-            )),
-            Field("q4", "Быстро ли устаёшь на уроках?", CHOICE, listOf(
-                FieldOption("1", "Нет"),
-                FieldOption("2", "Иногда"),
-                FieldOption("3", "Да, часто")
-            ))
+            choice("q1", "Как ты чувствуешь себя обычно",
+                "1" to "Хорошо",
+                "2" to "Бывает по-разному",
+                "3" to "Часто плохо", required = true),
+            choice("q2", "Как часто болит голова",
+                "1" to "Никогда или очень редко",
+                "2" to "Раз в месяц",
+                "3" to "Раз в неделю",
+                "4" to "Почти каждый день"),
+            choice("q3", "Как часто болит живот",
+                "1" to "Никогда/редко",
+                "2" to "Раз в месяц",
+                "3" to "Раз в неделю",
+                "4" to "Почти каждый день"),
+            choice("q4", "Быстро ли устаёшь на уроках",
+                "1" to "Нет", "2" to "Иногда", "3" to "Да, часто"),
+            choice("q5", "Замечал ли усталость глаз, слезоточивость",
+                "1" to "Нет", "2" to "Иногда", "3" to "Часто"),
+            choice("q6", "Бывают ли головокружения",
+                "1" to "Нет", "2" to "Иногда", "3" to "Часто"),
+            choice("q7", "Как оцениваешь своё здоровье",
+                "1" to "Отличное", "2" to "Хорошее",
+                "3" to "Удовлетворительное", "4" to "Плохое")
         )
     )
 
@@ -215,30 +236,40 @@ object AnketaCatalog {
     private val a8 = Anketa(
         id = "8",
         title = "Психоэмоциональное состояние",
-        subtitle = "отвечает обучающийся",
+        subtitle = "отвечает сам обучающийся",
         filler = CHILD,
         tabular = false,
         fields = listOf(
-            Field("q1", "Настроение в течение дня?", CHOICE, listOf(
-                FieldOption("1", "Обычно хорошее"),
-                FieldOption("2", "Меняется"),
-                FieldOption("3", "Чаще плохое")
-            )),
-            Field("q2", "Легко ли тебе засыпать вечером?", CHOICE, listOf(
-                FieldOption("1", "Да"),
-                FieldOption("2", "Иногда трудно"),
-                FieldOption("3", "Часто трудно")
-            )),
-            Field("q3", "Чувствуешь ли тревогу перед школой?", CHOICE, listOf(
-                FieldOption("1", "Нет"),
-                FieldOption("2", "Иногда"),
-                FieldOption("3", "Часто")
-            )),
-            Field("q4", "Есть ли друзья в классе?", CHOICE, listOf(
-                FieldOption("1", "Да, много"),
-                FieldOption("2", "Есть 1–2"),
-                FieldOption("3", "Нет")
-            ))
+            choice("q1", "Настроение в течение дня",
+                "1" to "Обычно хорошее",
+                "2" to "Меняется",
+                "3" to "Чаще плохое"),
+            choice("q2", "Легко ли тебе засыпать вечером",
+                "1" to "Да",
+                "2" to "Иногда трудно",
+                "3" to "Часто трудно"),
+            choice("q3", "Чувствуешь ли тревогу перед школой",
+                "1" to "Нет", "2" to "Иногда", "3" to "Часто"),
+            choice("q4", "Есть ли друзья в классе",
+                "1" to "Да, много",
+                "2" to "Есть 1–2",
+                "3" to "Нет"),
+            choice("q5", "Комфортно ли на уроках",
+                "1" to "Да, всегда",
+                "2" to "Иногда напряжённо",
+                "3" to "Часто плохо"),
+            choice("q6", "Бывают ли конфликты со сверстниками",
+                "1" to "Нет",
+                "2" to "Изредка",
+                "3" to "Часто"),
+            choice("q7", "Могу обратиться к взрослому за помощью",
+                "1" to "Да, всегда",
+                "2" to "Иногда",
+                "3" to "Не могу"),
+            choice("q8", "Испытываю страх/тревогу перед контрольными",
+                "1" to "Не испытываю",
+                "2" to "Немного",
+                "3" to "Сильно")
         )
     )
 
@@ -255,11 +286,21 @@ object AnketaCatalog {
             Field("tv_h", "Часов в день у телевизора", DECIMAL),
             Field("games_h", "Часов в день в видеоиграх", DECIMAL),
             Field("soc_h", "Часов в день в соцсетях/мессенджерах", DECIMAL),
-            Field("bed", "Пользуется экраном перед сном?", CHOICE, listOf(
-                FieldOption("1", "Каждый вечер"),
-                FieldOption("2", "Иногда"),
-                FieldOption("3", "Нет")
-            ))
+            Field("edu_h", "Часов в день учебной активности за экраном", DECIMAL),
+            choice("bed", "Пользуется экраном перед сном",
+                "1" to "Каждый вечер",
+                "2" to "Иногда",
+                "3" to "Нет"),
+            choice("break", "Делает ли перерывы каждые 20–30 минут",
+                "1" to "Да, регулярно",
+                "2" to "Иногда",
+                "3" to "Нет"),
+            choice("night", "Пользуется устройствами ночью",
+                "1" to "Нет", "2" to "Иногда", "3" to "Да, часто"),
+            choice("limit", "Есть ли в семье правила ограничения экрана",
+                "1" to "Да, соблюдаются",
+                "2" to "Есть, но не всегда работают",
+                "3" to "Правил нет")
         )
     )
 
@@ -271,46 +312,48 @@ object AnketaCatalog {
         filler = PARENT,
         tabular = false,
         fields = listOf(
-            Field("mdate", "Дата измерения (дд.мм.гггг)", DATE),
-            Field("height", "Рост (см)", INT),
-            Field("weight", "Вес (кг)", DECIMAL),
-            Field("family", "Состав семьи", CHOICE, listOf(
-                FieldOption("1", "Полная"), FieldOption("2", "Неполная")
-            ), required = true),
-            Field("m_age", "Возраст матери (опекуна)", CHOICE, listOf(
-                FieldOption("1", "до 29"),
-                FieldOption("2", "30–34"),
-                FieldOption("3", "35–39"),
-                FieldOption("4", "40–44"),
-                FieldOption("5", "45 и старше")
-            )),
-            Field("f_age", "Возраст отца", CHOICE, listOf(
-                FieldOption("1", "до 29"),
-                FieldOption("2", "30–34"),
-                FieldOption("3", "35–39"),
-                FieldOption("4", "40–44"),
-                FieldOption("5", "45 и старше"),
-                FieldOption("6", "нет данных")
-            )),
-            Field("m_edu", "Образование матери", CHOICE, listOf(
-                FieldOption("1", "Основное общее"),
-                FieldOption("2", "Среднее"),
-                FieldOption("3", "Среднее профессиональное"),
-                FieldOption("4", "Высшее")
-            )),
-            Field("f_edu", "Образование отца", CHOICE, listOf(
-                FieldOption("1", "Основное общее"),
-                FieldOption("2", "Среднее"),
-                FieldOption("3", "Среднее профессиональное"),
-                FieldOption("4", "Высшее"),
-                FieldOption("5", "нет данных")
-            )),
+            Field("mdate", "Дата заполнения (дд.мм.гггг)", DATE),
+            Field("height", "Рост ребёнка (см)", INT),
+            Field("weight", "Вес ребёнка (кг)", DECIMAL),
+            choice("family", "Состав семьи",
+                "1" to "Полная",
+                "2" to "Неполная",
+                "3" to "Опекуны/приёмная", required = true),
+            choice("m_age", "Возраст матери (опекуна)",
+                "1" to "до 29",
+                "2" to "30–34",
+                "3" to "35–39",
+                "4" to "40–44",
+                "5" to "45 и старше"),
+            choice("f_age", "Возраст отца",
+                "1" to "до 29",
+                "2" to "30–34",
+                "3" to "35–39",
+                "4" to "40–44",
+                "5" to "45 и старше",
+                "6" to "нет данных"),
+            choice("m_edu", "Образование матери",
+                "1" to "Основное общее",
+                "2" to "Среднее",
+                "3" to "Среднее профессиональное",
+                "4" to "Высшее"),
+            choice("f_edu", "Образование отца",
+                "1" to "Основное общее",
+                "2" to "Среднее",
+                "3" to "Среднее профессиональное",
+                "4" to "Высшее",
+                "5" to "нет данных"),
             Field("kids", "Число детей в семье", INT),
-            Field("income", "Оценка достатка семьи", CHOICE, listOf(
-                FieldOption("1", "Ниже среднего"),
-                FieldOption("2", "Средний"),
-                FieldOption("3", "Выше среднего")
-            ))
+            choice("income", "Оценка достатка семьи (субъективно)",
+                "1" to "Ниже среднего",
+                "2" to "Средний",
+                "3" to "Выше среднего"),
+            choice("smoking", "Есть ли курящие в семье",
+                "1" to "Нет", "2" to "Да, вне дома", "3" to "Да, дома"),
+            choice("housing", "Жилищные условия",
+                "1" to "Отдельная комната у ребёнка",
+                "2" to "Общая комната",
+                "3" to "Стеснённые условия")
         )
     )
 
@@ -324,21 +367,32 @@ object AnketaCatalog {
         fields = listOf(
             Field("height", "Рост (см)", INT),
             Field("weight", "Вес (кг)", DECIMAL),
-            Field("score", "Средний балл за учебный год", DECIMAL, required = true)
+            Field("score", "Средний балл за учебный год", DECIMAL, required = true, hint = "2.0–5.0"),
+            Field("rus", "Русский язык (годовая)", INT, hint = "2–5"),
+            Field("mat", "Математика (годовая)", INT, hint = "2–5"),
+            Field("read", "Литература/Литературное чтение", INT, hint = "2–5"),
+            Field("eng", "Иностранный язык", INT, hint = "2–5"),
+            Field("pe", "Физическая культура", INT, hint = "2–5"),
+            choice("behavior", "Поведение",
+                "1" to "Отличное",
+                "2" to "Хорошее",
+                "3" to "Удовлетворительное",
+                "4" to "Требует внимания"),
+            choice("attend", "Общая посещаемость",
+                "1" to "≥ 95%",
+                "2" to "85–95%",
+                "3" to "< 85%")
         )
     )
 
     val all: List<Anketa> = listOf(a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11)
     fun byId(id: String): Anketa = all.first { it.id == id }
-
-    /** Анкеты, доступные родителю (индивидуальные, включая «детские» 7, 8). */
     val parentAnketas: List<Anketa> = all.filter { !it.tabular }
 
-    /** Анкеты сотрудника по его роли. */
-    fun forTeacherRole(r: ru.school.healthmonitor.data.TeacherRole): List<Anketa> = when (r) {
-        ru.school.healthmonitor.data.TeacherRole.MEDIC -> listOf(a1, a2)
-        ru.school.healthmonitor.data.TeacherRole.PE -> listOf(a3)
-        ru.school.healthmonitor.data.TeacherRole.HOMEROOM -> listOf(a11)
-        ru.school.healthmonitor.data.TeacherRole.ADMIN -> all  // админу — всё
+    fun forTeacherRole(r: TeacherRole): List<Anketa> = when (r) {
+        TeacherRole.MEDIC -> listOf(a1, a2)
+        TeacherRole.PE -> listOf(a3)
+        TeacherRole.HOMEROOM -> listOf(a11)
+        TeacherRole.ADMIN -> all
     }
 }

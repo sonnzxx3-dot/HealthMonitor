@@ -12,6 +12,8 @@
             android:name=".MainActivity"
             android:exported="true"
             android:label="@string/app_name"
+            android:configChanges="orientation|screenSize|screenLayout|keyboardHidden|uiMode"
+            android:windowSoftInputMode="adjustResize"
             android:theme="@style/Theme.HealthMonitor">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />

@@ -1,10 +1,15 @@
 package ru.school.healthmonitor.ui.auth
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
@@ -21,32 +26,46 @@ fun TeacherLoginScreen(nav: NavController) {
     var pass by remember { mutableStateOf("") }
     var error by remember { mutableStateOf<String?>(null) }
 
-    AppScaffold("Вход для учителя", nav) { pv ->
+    AppScaffold("Вход для сотрудника", nav) { pv ->
         Column(
-            Modifier.fillMaxSize().padding(pv).padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            Modifier.padding(pv).padding(16.dp).verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            SectionCard("Учётная запись сотрудника") {
-                Text("Демо-аккаунт: admin / admin", style = MaterialTheme.typography.bodySmall)
+            SectionCard("Учётная запись") {
+                Text("Демо: admin / admin",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Spacer(Modifier.height(10.dp))
+                OutlinedTextField(
+                    login, { login = it.trim(); error = null },
+                    label = { Text("Логин") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+                    modifier = Modifier.fillMaxWidth()
+                )
                 Spacer(Modifier.height(8.dp))
-                OutlinedTextField(login, { login = it; error = null },
-                    label = { Text("Логин") }, singleLine = true,
-                    modifier = Modifier.fillMaxWidth())
-                Spacer(Modifier.height(8.dp))
-                OutlinedTextField(pass, { pass = it; error = null },
-                    label = { Text("Пароль") }, singleLine = true,
+                OutlinedTextField(
+                    pass, { pass = it; error = null },
+                    label = { Text("Пароль") },
+                    singleLine = true,
                     visualTransformation = PasswordVisualTransformation(),
-                    modifier = Modifier.fillMaxWidth())
-                error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-                Spacer(Modifier.height(8.dp))
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                    isError = error != null,
+                    supportingText = error?.let { { Text(it) } },
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(Modifier.height(10.dp))
                 Button(
                     onClick = {
-                        val t = repo.authTeacher(login.trim(), pass)
+                        val t = repo.authTeacher(login, pass)
                         if (t == null) error = "Неверный логин или пароль"
-                        else nav.navigate("teacher/home/${t.id}")
+                        else nav.navigate("teacher/home/${t.id}") {
+                            popUpTo("role")
+                        }
                     },
-                    enabled = login.isNotBlank() && pass.isNotBlank()
-                ) { Text("Войти") }
+                    enabled = login.isNotBlank() && pass.isNotBlank(),
+                    modifier = Modifier.fillMaxWidth().height(52.dp)
+                ) { Text("Войти", fontWeight = FontWeight.Medium) }
             }
         }
     }

@@ -7,11 +7,14 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import ru.school.healthmonitor.data.Repository
 import ru.school.healthmonitor.domain.AnketaCatalog
 import ru.school.healthmonitor.ui.common.AppScaffold
+import ru.school.healthmonitor.ui.common.EmptyState
+import ru.school.healthmonitor.ui.common.ProgressStrip
 import ru.school.healthmonitor.ui.common.SectionCard
 
 @Composable
@@ -24,44 +27,86 @@ fun ClassRosterScreen(nav: NavController, teacherId: String, classId: String) {
     val kids = state.children.filter { it.classId == classId }
     val anketas = AnketaCatalog.forTeacherRole(teacher.role)
 
-    AppScaffold("${sc.letter} · ${sc.school}", nav) { pv ->
+    AppScaffold("${sc.letter}", nav) { pv ->
         Column(
-            Modifier.fillMaxSize().padding(pv).padding(16.dp).verticalScroll(rememberScrollState()),
+            Modifier.padding(pv).padding(16.dp).verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            SectionCard("Класс") {
+            SectionCard {
+                Text(sc.school, style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold)
+                Text("Регион: ${sc.region}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Spacer(Modifier.height(6.dp))
                 Text("Код приглашения родителей: ${sc.inviteCode}",
                     style = MaterialTheme.typography.bodyMedium)
-                Text("Учеников в классе: ${kids.size}",
-                    style = MaterialTheme.typography.bodySmall)
+                Text("Учеников: ${kids.size}",
+                    style = MaterialTheme.typography.bodyMedium)
             }
 
             SectionCard("Анкеты") {
                 anketas.forEach { a ->
-                    OutlinedButton(
+                    val donePerAnketa = kids.count { c ->
+                        state.submissions.any {
+                            it.childId == c.id && it.anketaId == a.id && it.submittedBy != "draft"
+                        }
+                    }
+                    ElevatedCard(
                         onClick = {
                             if (a.tabular) nav.navigate("teacher/table/$teacherId/$classId/${a.id}")
                             else if (kids.isNotEmpty()) nav.navigate("anketa/${kids.first().id}/${a.id}")
                         },
-                        modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp)
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp),
+                        colors = CardDefaults.elevatedCardColors(
+                            containerColor = MaterialTheme.colorScheme.surface
+                        )
                     ) {
-                        Text("№${a.id}. ${a.title}${if (a.tabular) "  (табличная)" else ""}")
+                        Column(Modifier.padding(12.dp)) {
+                            Text("№${a.id}. ${a.title}${if (a.tabular) "  (таблица)" else ""}",
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Medium)
+                            Spacer(Modifier.height(4.dp))
+                            ProgressStrip(donePerAnketa, kids.size.coerceAtLeast(1))
+                        }
                     }
                 }
             }
 
             SectionCard("Ученики") {
-                if (kids.isEmpty()) Text("Пока пусто — родители зарегистрируются по коду ${sc.inviteCode}.")
-                else kids.forEach { c ->
-                    val done = state.submissions.count { it.childId == c.id }
-                    Text("${c.displayName}  ·  заполнено анкет: $done/11")
+                if (kids.isEmpty()) {
+                    EmptyState(
+                        icon = "👥",
+                        title = "Пока никого нет",
+                        description = "Дайте родителям код ${sc.inviteCode}. Они зайдут в приложении и добавят детей сами."
+                    )
+                } else {
+                    kids.forEach { c ->
+                        val done = state.submissions.count {
+                            it.childId == c.id && it.submittedBy != "draft"
+                        }
+                        Row(
+                            Modifier.fillMaxWidth().padding(vertical = 6.dp)
+                        ) {
+                            Column(Modifier.weight(1f)) {
+                                Text(c.displayName,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.Medium)
+                                Text("${if (c.sex == 1) "м" else "ж"} · $done/${AnketaCatalog.all.size} анкет",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                        }
+                        HorizontalDivider()
+                    }
                 }
             }
 
             Button(
                 onClick = { nav.navigate("teacher/export/$teacherId/$classId") },
-                modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
-            ) { Text("Выгрузка результатов") }
+                modifier = Modifier.fillMaxWidth().height(52.dp).padding(top = 8.dp)
+            ) { Text("Выгрузка результатов", fontWeight = FontWeight.Medium) }
+            Spacer(Modifier.height(24.dp))
         }
     }
 }
